@@ -1,0 +1,50 @@
+.signup .container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    justify-content: center;
+    align-items: center;
+    padding: 3rem 1rem;
+}
+
+.signup .left {
+    text-align: center;
+}
+
+.signup img {
+    width:300px;
+}
+
+.signup-text {
+    font-size: 1.2rem;
+    font-family: 'Inter', sans-serif;
+}
+
+.signup-h2 {
+    font-size: 2.4rem;
+  line-height:1.2;
+  font-weight: 700;
+}
+
+.signup img:hover {
+    transform: scale(1.1);
+    transition: 0.5s ease-in-out;
+}
+
+.signup .right p {
+    margin: 2rem 0;
+}
+
+@media screen and (max-width: 960px) {
+    .signup .container {
+        grid-template-columns: 1fr;
+    }
+
+    .signup-h2 {
+        font-size: 2.1rem;
+    line-height: 1.2;
+    }
+
+    .signup-text {
+        font-size: 1rem;
+    }
+}
