@@ -38,38 +38,40 @@ const CoinSearch = ({ coins }) => {
   </form>
 </div>
 
-      <table className='w-full border-collapse text-center'>
-        <thead>
-          <tr className='border-b text-gray-500 text-sm md:text-base'>
-            <th></th>
-            <th className='px-4'>Rank</th>
-            <th className='text-left'>Name</th>
-            <th></th>
-            <th>Price</th>
-            <th>24h</th>
-            <th className='hidden md:table-cell'>24h Volume</th>
-            <th className='hidden sm:table-cell'>Market Cap</th>
-            <th>Last 7 Days</th>
-          </tr>
-        </thead>
+     <div className='px-[5px] md:px-0'>
+  <table className='w-full border-collapse text-center'>
+    <thead>
+      <tr className='border-b text-gray-500 text-sm md:text-base'>
+        <th></th>
+        <th className='px-4'>Rank</th>
+        <th className='text-left'>Name</th>
+        <th></th>
+        <th>Price</th>
+        <th>24h</th>
+        <th className='hidden md:table-cell'>24h Volume</th>
+        <th className='hidden sm:table-cell'>Market Cap</th>
+        <th>Last 7 Days</th>
+      </tr>
+    </thead>
 
-        <tbody>
-          {coins
-            .filter((value) => {
-              if (searchText === '') {
-                return value;
-              } else if (
-                value.name.toLowerCase().includes(searchText.toLowerCase())
-              ) {
-                return value;
-              }
-              return false;
-            })
-            .map((coin) => (
-              <CoinItem key={coin.id} coin={coin} />
-            ))}
-        </tbody>
-      </table>
+    <tbody>
+      {coins
+        .filter((value) => {
+          if (searchText === '') {
+            return value;
+          } else if (
+            value.name.toLowerCase().includes(searchText.toLowerCase())
+          ) {
+            return value;
+          }
+          return false;
+        })
+        .map((coin) => (
+          <CoinItem key={coin.id} coin={coin} />
+        ))}
+    </tbody>
+  </table>
+</div>
     </div>
   )
 }
