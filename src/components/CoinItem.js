@@ -72,11 +72,11 @@ const CoinItem = ({ coin }) => {
         ${coin.market_cap?.toLocaleString()}
       </td>
 
-      <td className="w-[90px] sm:w-auto">
-        <Sparklines data={coin.sparkline_in_7d?.price ?? []}>
-          <SparklinesLine color="teal" />
-        </Sparklines>
-      </td>
+      <td className="hidden sm:table-cell w-[90px] sm:w-auto">
+  <Sparklines data={coin.sparkline_in_7d?.price ?? []}>
+    <SparklinesLine color="teal" />
+  </Sparklines>
+</td>
     </tr>
   );
 };
