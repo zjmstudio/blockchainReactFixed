@@ -6,7 +6,7 @@ import { UserAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { arrayUnion, doc, updateDoc } from 'firebase/firestore';
 
-// safe formatter
+
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : 'N/A');
 
 const CoinItem = ({ coin }) => {
