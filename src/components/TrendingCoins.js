@@ -6,6 +6,7 @@ const TrendingCoins = () => {
   const [trending, setTrending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // API helper automatically switches between CoinGecko (local) and Netlify (production)
   const url = API.trending;
@@ -39,11 +40,20 @@ const TrendingCoins = () => {
     };
   }, [url]);
 
+  useEffect(() => {
+  const handleResize = () => {
+    setIsMobile(window.innerWidth < 768);
+  };
+
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
+
   if (loading) {
     return (
       <div className='rounded-div my-12 py-8 text-primary border-none'>
         <h1 className='trending-coins-h1'>Trending Coins</h1>
-        <p>Loading…</p>
+        <p>Loading...</p>
       </div>
     );
   }
@@ -59,11 +69,11 @@ const TrendingCoins = () => {
 
 return (
   <div className="rounded-div my-12 py-8 text-primary border-none">
-    <div className="px-1 md:px-0">
+    <div className="px-4 md:px-0">
       <h1 className="trending-coins-h1">Trending Coins</h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {trending.slice(0, 12).map((coin) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {trending.slice(0, isMobile ? 6 : 9).map((coin) => (
           <div key={coin.item.id} className="card-trending">
             <div className="flex w-full items-center justify-between">
               <div className="flex">
