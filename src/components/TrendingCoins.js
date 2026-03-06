@@ -59,7 +59,7 @@ const TrendingCoins = () => {
 
 return (
   <div className="rounded-div my-12 py-8 text-primary border-none">
-    <div className="px-4 md:px-0">
+    <div className="px-1 md:px-0">
       <h1 className="trending-coins-h1">Trending Coins</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
