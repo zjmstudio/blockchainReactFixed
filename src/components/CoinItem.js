@@ -6,7 +6,6 @@ import { UserAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { arrayUnion, doc, updateDoc } from 'firebase/firestore';
 
-
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : 'N/A');
 
 const CoinItem = ({ coin }) => {
@@ -55,13 +54,13 @@ const CoinItem = ({ coin }) => {
 
       <td>${coin.current_price?.toLocaleString()}</td>
 
-      <td>
+      <td className="px-[5px]">
         {Number.isFinite(pct) ? (
-          <p className={pct > 0 ? 'text-green-600' : 'text-red-600'}>
+          <p className={`whitespace-nowrap ${pct > 0 ? 'text-green-600' : 'text-red-600'}`}>
             {fmt(pct, 2)}%
           </p>
         ) : (
-          <p className="text-gray-400">N/A</p>
+          <p className="text-gray-400 whitespace-nowrap">N/A</p>
         )}
       </td>
 
@@ -73,7 +72,7 @@ const CoinItem = ({ coin }) => {
         ${coin.market_cap?.toLocaleString()}
       </td>
 
-      <td>
+      <td className="w-[90px] sm:w-auto">
         <Sparklines data={coin.sparkline_in_7d?.price ?? []}>
           <SparklinesLine color="teal" />
         </Sparklines>
