@@ -52,13 +52,26 @@ const pctClass = (v) => {
 };
 
 const rangeConfig = {
-  '1D': { days: 1, label: '1 Day Performance' },
-  '7D': { days: 7, label: '7 Day Performance' },
-  '30D': { days: 30, label: '30 Day Performance' },
-  '1Y': { days: 365, label: '1 Year Performance' },
+  '1D': { label: '1 Day Performance' },
+  '7D': { label: '7 Day Performance' },
+  '30D': { label: '30 Day Performance' },
+  '1Y': { label: '1 Year Performance' },
+};
+
+const smoothSeries = (data, windowSize = 3) => {
+  if (!Array.isArray(data) || data.length < 3) return data;
+
+  return data.map((_, index) => {
+    const start = Math.max(0, index - windowSize + 1);
+    const slice = data.slice(start, index + 1);
+    const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+    return avg;
+  });
 };
 
 const AreaSparkline = ({ data }) => {
+  const [hoverIndex, setHoverIndex] = useState(null);
+
   if (!Array.isArray(data) || data.length < 2) {
     return (
       <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
@@ -95,6 +108,17 @@ const AreaSparkline = ({ data }) => {
         className='block h-full w-full'
         preserveAspectRatio='none'
         aria-label='price chart'
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const percent = x / rect.width;
+          const index = Math.max(
+            0,
+            Math.min(data.length - 1, Math.round(percent * (data.length - 1)))
+          );
+          setHoverIndex(index);
+        }}
+        onMouseLeave={() => setHoverIndex(null)}
       >
         <defs>
           <linearGradient id='coinAreaFill' x1='0' y1='0' x2='0' y2='1'>
@@ -111,7 +135,7 @@ const AreaSparkline = ({ data }) => {
           </filter>
         </defs>
 
-        <path d={areaPath} fill='url(#coinAreaFill)' />
+        <path d={areaPath} fill='url(#coinAreaFill)' style={{ transition: 'all 0.35s ease' }} />
 
         <path
           d={linePath}
@@ -120,6 +144,7 @@ const AreaSparkline = ({ data }) => {
           strokeWidth='6'
           opacity='0.25'
           filter='url(#glow)'
+          style={{ transition: 'all 0.35s ease' }}
         />
 
         <path
@@ -129,7 +154,29 @@ const AreaSparkline = ({ data }) => {
           strokeWidth='3'
           strokeLinecap='round'
           strokeLinejoin='round'
+          style={{ transition: 'all 0.35s ease' }}
         />
+
+        {hoverIndex !== null && points[hoverIndex] && (
+          <>
+            <line
+              x1={points[hoverIndex][0]}
+              x2={points[hoverIndex][0]}
+              y1='0'
+              y2={height}
+              stroke='#9ca3af'
+              strokeDasharray='4 4'
+            />
+            <circle
+              cx={points[hoverIndex][0]}
+              cy={points[hoverIndex][1]}
+              r='5'
+              fill='#14b8a6'
+              stroke='white'
+              strokeWidth='2'
+            />
+          </>
+        )}
       </svg>
     </div>
   );
@@ -140,13 +187,6 @@ const CoinPage = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
   const [activeRange, setActiveRange] = useState('7D');
-  const [chartLoading, setChartLoading] = useState(false);
-  const [chartCache, setChartCache] = useState({
-    '1D': null,
-    '7D': null,
-    '30D': null,
-    '1Y': null,
-  });
 
   const { coinId } = useParams();
   const coinUrl = API.coin(coinId ?? '');
@@ -157,27 +197,12 @@ const CoinPage = () => {
     setLoading(true);
     setErrMsg('');
     setCoin(null);
-    setChartCache({
-      '1D': null,
-      '7D': null,
-      '30D': null,
-      '1Y': null,
-    });
 
     axios
       .get(coinUrl)
       .then((response) => {
         if (cancelled) return;
-
-        const coinData = response.data;
-        setCoin(coinData);
-
-        const spark7d = coinData?.market_data?.sparkline_7d?.price ?? [];
-
-        setChartCache((prev) => ({
-          ...prev,
-          '7D': Array.isArray(spark7d) && spark7d.length > 1 ? spark7d : null,
-        }));
+        setCoin(response.data);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -196,71 +221,39 @@ const CoinPage = () => {
     };
   }, [coinUrl]);
 
-  useEffect(() => {
-    let cancelled = false;
 
-    const loadRangeChart = async () => {
-      if (!coinId) return;
-      if (activeRange === '7D') return;
-      if (chartCache[activeRange]) return;
 
-      setChartLoading(true);
+ const spark7d = coin?.market_data?.sparkline_7d?.price ?? [];
 
-      try {
-        const { days } = rangeConfig[activeRange];
+const activeChartData = useMemo(() => {
+  if (!Array.isArray(spark7d) || spark7d.length < 2) return [];
 
-        const response = await axios.get(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
-          {
-            params: {
-              vs_currency: 'usd',
-              days,
-            },
-          }
-        );
+  if (activeRange === '1D') {
+    return spark7d.slice(-24);
+  }
 
-        if (cancelled) return;
+  return spark7d;
+}, [spark7d, activeRange]);
 
-        const prices = Array.isArray(response.data?.prices)
-          ? response.data.prices.map(([_, price]) => price)
-          : [];
 
-        setChartCache((prev) => ({
-          ...prev,
-          [activeRange]: prices.length > 1 ? prices : null,
-        }));
-      } catch (err) {
-        if (cancelled) return;
-        console.error(`${activeRange} chart fetch failed:`, err);
 
-        setChartCache((prev) => ({
-          ...prev,
-          [activeRange]: null,
-        }));
-      } finally {
-        if (cancelled) return;
-        setChartLoading(false);
-      }
-    };
-
-    loadRangeChart();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [coinId, activeRange, chartCache]);
-
-  const activeChartData = chartCache[activeRange] || chartCache['7D'] || [];
 
   const rangePct = useMemo(() => {
-    if (!Array.isArray(activeChartData) || activeChartData.length < 2) return NaN;
-    const first = activeChartData[0];
-    const last = activeChartData[activeChartData.length - 1];
-    if (!Number.isFinite(first) || first === 0 || !Number.isFinite(last)) {
-      return NaN;
+    if (!coin?.market_data) return NaN;
+
+    switch (activeRange) {
+      case '1D':
+        return coin.market_data?.price_change_percentage_24h;
+      case '7D':
+        return coin.market_data?.price_change_percentage_7d;
+      case '30D':
+        return coin.market_data?.price_change_percentage_30d;
+      case '1Y':
+        return coin.market_data?.price_change_percentage_1y;
+      default:
+        return NaN;
     }
-    return ((last - first) / first) * 100;
-  }, [activeChartData]);
+  }, [coin, activeRange]);
 
   if (loading) {
     return (
@@ -400,12 +393,14 @@ const CoinPage = () => {
           </div>
 
           <div className='flex-1'>
-            {chartLoading ? (
-              <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
-                Loading chart…
-              </p>
-            ) : (
+            {activeChartData ? (
               <AreaSparkline key={activeRange} data={activeChartData} />
+            ) : (
+              <div className='px-5 pb-5 md:px-6 md:pb-6'>
+                <p className='text-sm text-gray-500'>
+                  Chart unavailable in browser mode for this range due to API rate limits.
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -417,10 +412,7 @@ const CoinPage = () => {
 
           <div className='grid grid-cols-2 gap-4'>
             {statCards.map((item) => (
-              <div
-                key={item.label}
-                className='min-w-0 rounded-xl border p-4'
-              >
+              <div key={item.label} className='min-w-0 rounded-xl border p-4'>
                 <p className='text-sm text-gray-500'>{item.label}</p>
                 <p className='mt-1 break-words font-semibold'>{item.value}</p>
               </div>
@@ -433,10 +425,7 @@ const CoinPage = () => {
 
           <div className='grid grid-cols-2 gap-4'>
             {performanceCards.map((item) => (
-              <div
-                key={item.label}
-                className='min-w-0 rounded-xl border p-4'
-              >
+              <div key={item.label} className='min-w-0 rounded-xl border p-4'>
                 <p className='text-sm text-gray-500'>{item.label}</p>
                 <p
                   className={`mt-1 break-words font-semibold ${pctClass(
