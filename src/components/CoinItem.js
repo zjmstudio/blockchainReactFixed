@@ -34,7 +34,7 @@ const CoinItem = ({ coin }) => {
   const pct = coin?.price_change_percentage_24h;
 
   return (
-    <tr className="h-[80px] border-b overflow-hidden">
+    <tr className="h-[80px] border-b">
       <td onClick={saveCoin}>
         {savedCoin ? <AiFillStar /> : <AiOutlineStar />}
       </td>
@@ -54,13 +54,13 @@ const CoinItem = ({ coin }) => {
 
       <td>${coin.current_price?.toLocaleString()}</td>
 
-      <td className="px-[5px]">
+      <td className="px-[5px] min-w-[60px]">
         {Number.isFinite(pct) ? (
-          <p className={`whitespace-nowrap ${pct > 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`whitespace-nowrap text-sm ${pct > 0 ? 'text-green-600' : 'text-red-600'}`}>
             {fmt(pct, 2)}%
           </p>
         ) : (
-          <p className="text-gray-400 whitespace-nowrap">N/A</p>
+          <p className="text-gray-400 whitespace-nowrap text-sm">N/A</p>
         )}
       </td>
 
@@ -73,10 +73,10 @@ const CoinItem = ({ coin }) => {
       </td>
 
       <td className="hidden sm:table-cell w-[90px] sm:w-auto">
-  <Sparklines data={coin.sparkline_in_7d?.price ?? []}>
-    <SparklinesLine color="teal" />
-  </Sparklines>
-</td>
+        <Sparklines data={coin.sparkline_in_7d?.price ?? []}>
+          <SparklinesLine color="teal" />
+        </Sparklines>
+      </td>
     </tr>
   );
 };
