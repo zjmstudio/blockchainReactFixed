@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import ScrollToTop from './components/ScrollToTop';
 
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -42,6 +43,7 @@ function App() {
   return (
     <AuthContextProvider>
       <Navbar />
+      <ScrollToTop />
 
       <Routes>
         <Route path='/' element={<Home coins={coins} />} />
