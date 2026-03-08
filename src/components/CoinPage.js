@@ -107,7 +107,8 @@ const formatTime = (timestamp) => {
       transform: `translateX(${points[hoverIndex][0]}px)`
     }}
   >
-    {money(hoveredPoint.price)} • {formatTime(hoveredPoint.timestamp)}
+    {money(hoveredPoint.price)}
+{hoveredPoint.timestamp && ` • ${formatTime(hoveredPoint.timestamp)}`}
   </div>
 )}
       <svg
@@ -282,13 +283,15 @@ const CoinPage = () => {
 
   const spark7d = coin?.market_data?.sparkline_7d?.price ?? [];
 
-  const activeChartData = useMemo(() => {
-    if (activeRange === '1D') {
-      return oneDayChart;
-    }
+const activeChartData = useMemo(() => {
+  if (activeRange === '1D') {
+    return oneDayChart;
+  }
 
-    return Array.isArray(spark7d) ? spark7d : [];
-  }, [activeRange, oneDayChart, spark7d]);
+  return Array.isArray(spark7d)
+    ? spark7d.map(price => ({ price }))
+    : [];
+}, [activeRange, oneDayChart, spark7d]);
 
   const price = coin?.market_data?.current_price?.usd;
   const marketCap = coin?.market_data?.market_cap?.usd;
