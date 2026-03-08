@@ -52,14 +52,25 @@ const pctClass = (v) => {
 };
 
 const rangeConfig = {
-  '1D': { label: '1 Day Performance' },
-  '7D': { label: '7 Day Performance' },
+  '1D': { label: '1 Day Performance', days: 1 },
+  '7D': { label: '7 Day Performance', days: 7 },
 };
 
-const formatTime = (timestamp) => {
+const formatTime = (timestamp, range) => {
   if (!timestamp) return '';
 
-  return new Date(timestamp).toLocaleString(undefined, {
+  const date = new Date(timestamp);
+
+  if (range === '1D') {
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  return date.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -67,7 +78,7 @@ const formatTime = (timestamp) => {
   });
 };
 
-const AreaSparkline = ({ data }) => {
+const AreaSparkline = ({ data, activeRange }) => {
   const [hoverIndex, setHoverIndex] = useState(null);
 
   if (!Array.isArray(data) || data.length < 2) {
@@ -80,9 +91,7 @@ const AreaSparkline = ({ data }) => {
 
   const width = 900;
   const height = 260;
-  const padTop = 16;
-  const padBottom = 18;
-  const chartHeight = height - padBottom;
+  const padTop = 10;
   const bottomY = height;
 
   const min = Math.min(...data.map((pricePoint) => pricePoint.price));
@@ -91,8 +100,7 @@ const AreaSparkline = ({ data }) => {
 
   const points = data.map((pricePoint, index) => {
     const x = (index / (data.length - 1)) * width;
-    const y =
-      chartHeight - ((pricePoint.price - min) / range) * (chartHeight - padTop);
+    const y = height - ((pricePoint.price - min) / range) * (height - padTop);
     return [x, y];
   });
 
@@ -113,7 +121,6 @@ const AreaSparkline = ({ data }) => {
     const rect = element.getBoundingClientRect();
     const x = clientX - rect.left;
     const percent = rect.width ? x / rect.width : 0;
-
     const index = Math.max(
       0,
       Math.min(data.length - 1, Math.round(percent * (data.length - 1)))
@@ -123,30 +130,28 @@ const AreaSparkline = ({ data }) => {
   };
 
   return (
-    <div className='relative h-full min-h-[190px] w-full overflow-hidden px-3 pb-3 pt-12 sm:min-h-[210px] sm:px-4 md:min-h-[230px] md:px-5'>
+    <div className='relative h-full min-h-[160px] w-full overflow-hidden sm:min-h-[180px] md:min-h-[200px]'>
       {hoveredPoint && (
         <div
-          className='pointer-events-none absolute top-2 z-10 max-w-[calc(100%-16px)] rounded-lg bg-black/90 px-2.5 py-1.5 text-[11px] text-white shadow sm:text-xs'
+          className='pointer-events-none absolute top-2 z-10 rounded-md bg-black/90 px-2 py-1 text-[11px] text-white shadow sm:text-xs'
           style={{
-            left: `clamp(78px, ${tooltipPercent}, calc(100% - 78px))`,
+            left: `clamp(76px, ${tooltipPercent}, calc(100% - 76px))`,
             transform: 'translateX(-50%)',
+            maxWidth: 'calc(100% - 8px)',
           }}
         >
           <div className='whitespace-nowrap font-semibold'>
             {money(hoveredPoint.price)}
           </div>
-
-          {hoveredPoint.timestamp && (
-            <div className='mt-0.5 whitespace-nowrap text-white/80'>
-              {formatTime(hoveredPoint.timestamp)}
-            </div>
-          )}
+          <div className='whitespace-nowrap text-white/80'>
+            {formatTime(hoveredPoint.timestamp, activeRange)}
+          </div>
         </div>
       )}
 
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className='block h-full w-full overflow-visible'
+        className='block h-full w-full'
         preserveAspectRatio='none'
         aria-label='price chart'
         onMouseMove={(e) => updateHoverFromClientX(e.clientX, e.currentTarget)}
@@ -230,8 +235,8 @@ const CoinPage = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
   const [activeRange, setActiveRange] = useState('7D');
-  const [oneDayChart, setOneDayChart] = useState([]);
-  const [oneDayLoading, setOneDayLoading] = useState(false);
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const { coinId } = useParams();
   const coinUrl = API.coin(coinId ?? '');
@@ -242,7 +247,6 @@ const CoinPage = () => {
     setLoading(true);
     setErrMsg('');
     setCoin(null);
-    setOneDayChart([]);
 
     axios
       .get(coinUrl)
@@ -270,20 +274,20 @@ const CoinPage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadOneDayChart = async () => {
+    const loadChart = async () => {
       if (!coinId) return;
-      if (activeRange !== '1D') return;
-      if (oneDayChart.length > 1) return;
 
-      setOneDayLoading(true);
+      setChartLoading(true);
 
       try {
+        const days = rangeConfig[activeRange].days;
+
         const response = await axios.get(
           `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
           {
             params: {
               vs_currency: 'usd',
-              days: 1,
+              days,
             },
           }
         );
@@ -297,35 +301,23 @@ const CoinPage = () => {
             }))
           : [];
 
-        setOneDayChart(prices);
+        setChartData(prices);
       } catch (err) {
         if (cancelled) return;
-        console.error('1D chart fetch failed:', err);
-        setOneDayChart([]);
+        console.error(`${activeRange} chart fetch failed:`, err);
+        setChartData([]);
       } finally {
         if (cancelled) return;
-        setOneDayLoading(false);
+        setChartLoading(false);
       }
     };
 
-    loadOneDayChart();
+    loadChart();
 
     return () => {
       cancelled = true;
     };
-  }, [coinId, activeRange, oneDayChart.length]);
-
-  const spark7d = coin?.market_data?.sparkline_7d?.price ?? [];
-
-  const activeChartData = useMemo(() => {
-    if (activeRange === '1D') {
-      return oneDayChart;
-    }
-
-    return Array.isArray(spark7d)
-      ? spark7d.map((price) => ({ price }))
-      : [];
-  }, [activeRange, oneDayChart, spark7d]);
+  }, [coinId, activeRange]);
 
   const price = coin?.market_data?.current_price?.usd;
   const marketCap = coin?.market_data?.market_cap?.usd;
@@ -388,7 +380,7 @@ const CoinPage = () => {
 
   return (
     <div className='rounded-div my-12 border-none py-8'>
-      <div className='grid grid-cols-12 items-stretch gap-8'>
+      <div className='grid grid-cols-12 gap-8 items-stretch'>
         <div className='col-span-12 rounded-3xl border border-[#f2e2c7] bg-[#fff9f2] px-6 py-6 shadow-sm md:px-8 md:py-7 lg:col-span-4'>
           <div className='flex items-center gap-5'>
             <img
@@ -467,12 +459,12 @@ const CoinPage = () => {
           </div>
 
           <div className='flex-1'>
-            {activeRange === '1D' && oneDayLoading ? (
+            {chartLoading ? (
               <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
                 Loading chart…
               </p>
-            ) : activeChartData.length > 1 ? (
-              <AreaSparkline key={activeRange} data={activeChartData} />
+            ) : chartData.length > 1 ? (
+              <AreaSparkline data={chartData} activeRange={activeRange} />
             ) : (
               <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
                 Market data is temporarily unavailable.
