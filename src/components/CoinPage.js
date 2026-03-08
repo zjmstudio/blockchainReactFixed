@@ -56,6 +56,17 @@ const rangeConfig = {
   '7D': { label: '7 Day Performance' },
 };
 
+const formatTime = (timestamp) => {
+  if (!timestamp) return '';
+
+  return new Date(timestamp).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
 const AreaSparkline = ({ data }) => {
   const [hoverIndex, setHoverIndex] = useState(null);
 
@@ -69,69 +80,87 @@ const AreaSparkline = ({ data }) => {
 
   const width = 900;
   const height = 260;
-  const padTop = 10;
+  const padTop = 16;
+  const padBottom = 18;
+  const chartHeight = height - padBottom;
   const bottomY = height;
 
-const min = Math.min(...data.map(pricePoint => pricePoint.price));
-const max = Math.max(...data.map(pricePoint => pricePoint.price));
-const range = max - min || 1;
+  const min = Math.min(...data.map((pricePoint) => pricePoint.price));
+  const max = Math.max(...data.map((pricePoint) => pricePoint.price));
+  const range = max - min || 1;
 
-const points = data.map((pricePoint, index) => {
-  const x = (index / (data.length - 1)) * width;
-  const y = height - ((pricePoint.price - min) / range) * (height - padTop);
-  return [x, y];
-});
+  const points = data.map((pricePoint, index) => {
+    const x = (index / (data.length - 1)) * width;
+    const y =
+      chartHeight - ((pricePoint.price - min) / range) * (chartHeight - padTop);
+    return [x, y];
+  });
 
   const linePath = points
     .map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`)
     .join(' ');
-const hoveredPoint = hoverIndex !== null ? data[hoverIndex] : null;
-const formatTime = (timestamp) => {
-  if (!timestamp) return '';
-  return new Date(timestamp).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
+
   const areaPath = `${linePath} L ${points[points.length - 1][0]} ${bottomY} L ${points[0][0]} ${bottomY} Z`;
 
+  const hoveredPoint = hoverIndex !== null ? data[hoverIndex] : null;
+  const hoveredCoords = hoverIndex !== null ? points[hoverIndex] : null;
+  const tooltipPercent =
+    hoveredCoords && width ? `${(hoveredCoords[0] / width) * 100}%` : '50%';
+
+  const updateHoverFromClientX = (clientX, element) => {
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const percent = rect.width ? x / rect.width : 0;
+    const index = Math.max(
+      0,
+      Math.min(data.length - 1, Math.round(percent * (data.length - 1)))
+    );
+
+    setHoverIndex(index);
+  };
+
   return (
-    <div className='relative h-full min-h-[160px] w-full sm:min-h-[180px] md:min-h-[200px]'>
-      
-     {hoveredPoint && (
-  <div
-    className="absolute -top-9 left-0 bg-black/90 text-white text-xs px-2 py-1 rounded-md shadow pointer-events-none"
-    style={{
-      transform: `translateX(${tooltipX}px) translateX(-50%)`
-    }}
-  >
-    {money(hoveredPoint.price)}
-    {hoveredPoint.timestamp && ` • ${formatTime(hoveredPoint.timestamp)}`}
-  </div>
-)}
+    <div className='relative h-full min-h-[190px] w-full overflow-hidden px-3 pb-3 pt-12 sm:min-h-[210px] sm:px-4 md:min-h-[230px] md:px-5'>
+      {hoveredPoint && (
+        <div
+          className='pointer-events-none absolute top-2 z-10 max-w-[calc(100%-16px)] rounded-lg bg-black/90 px-2.5 py-1.5 text-[11px] text-white shadow sm:text-xs'
+          style={{
+            left: `clamp(78px, ${tooltipPercent}, calc(100% - 78px))`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className='whitespace-nowrap font-semibold'>
+            {money(hoveredPoint.price)}
+          </div>
+          {hoveredPoint.timestamp && (
+            <div className='mt-0.5 whitespace-nowrap text-white/80'>
+              {formatTime(hoveredPoint.timestamp)}
+            </div>
+          )}
+        </div>
+      )}
+
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className='block h-full w-full'
+        className='block h-full w-full overflow-visible'
         preserveAspectRatio='none'
         aria-label='price chart'
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const percent = x / rect.width;
-          const index = Math.max(
-            0,
-            Math.min(data.length - 1, Math.round(percent * (data.length - 1)))
-          );
-          setHoverIndex(index);
-        }}
+        onMouseMove={(e) => updateHoverFromClientX(e.clientX, e.currentTarget)}
         onMouseLeave={() => setHoverIndex(null)}
+        onTouchStart={(e) =>
+          updateHoverFromClientX(e.touches[0].clientX, e.currentTarget)
+        }
+        onTouchMove={(e) =>
+          updateHoverFromClientX(e.touches[0].clientX, e.currentTarget)
+        }
+        onTouchEnd={() => setHoverIndex(null)}
       >
         <defs>
           <linearGradient id='coinAreaFill' x1='0' y1='0' x2='0' y2='1'>
-            <stop offset='0%' stopColor='rgba(20,184,166,0.35)' />
-            <stop offset='100%' stopColor='rgba(20,184,166,0.04)' />
+            <stop offset='0%' stopColor='#f97316' stopOpacity='0.32' />
+            <stop offset='100%' stopColor='#f97316' stopOpacity='0.05' />
           </linearGradient>
 
           <filter id='glow'>
@@ -146,44 +175,44 @@ const formatTime = (timestamp) => {
         <path
           d={areaPath}
           fill='url(#coinAreaFill)'
-          style={{ transition: 'all 0.35s ease' }}
+          style={{ transition: 'all 0.25s ease' }}
         />
 
         <path
           d={linePath}
           fill='none'
-          stroke='#14b8a6'
+          stroke='#f97316'
           strokeWidth='6'
-          opacity='0.25'
+          opacity='0.22'
           filter='url(#glow)'
-          style={{ transition: 'all 0.35s ease' }}
+          style={{ transition: 'all 0.25s ease' }}
         />
 
         <path
           d={linePath}
           fill='none'
-          stroke='#14b8a6'
+          stroke='#f97316'
           strokeWidth='3'
           strokeLinecap='round'
           strokeLinejoin='round'
-          style={{ transition: 'all 0.35s ease' }}
+          style={{ transition: 'all 0.25s ease' }}
         />
 
-        {hoverIndex !== null && points[hoverIndex] && (
+        {hoverIndex !== null && hoveredCoords && (
           <>
             <line
-              x1={points[hoverIndex][0]}
-              x2={points[hoverIndex][0]}
+              x1={hoveredCoords[0]}
+              x2={hoveredCoords[0]}
               y1='0'
               y2={height}
               stroke='#9ca3af'
               strokeDasharray='4 4'
             />
             <circle
-              cx={points[hoverIndex][0]}
-              cy={points[hoverIndex][1]}
+              cx={hoveredCoords[0]}
+              cy={hoveredCoords[1]}
               r='5'
-              fill='#14b8a6'
+              fill='#f97316'
               stroke='white'
               strokeWidth='2'
             />
@@ -260,7 +289,10 @@ const CoinPage = () => {
         if (cancelled) return;
 
         const prices = Array.isArray(response.data?.prices)
-          ? response.data.prices.map(([timestamp, price]) => ({   price,   timestamp }))
+          ? response.data.prices.map(([timestamp, price]) => ({
+              price,
+              timestamp,
+            }))
           : [];
 
         setOneDayChart(prices);
@@ -283,15 +315,13 @@ const CoinPage = () => {
 
   const spark7d = coin?.market_data?.sparkline_7d?.price ?? [];
 
-const activeChartData = useMemo(() => {
-  if (activeRange === '1D') {
-    return oneDayChart;
-  }
+  const activeChartData = useMemo(() => {
+    if (activeRange === '1D') {
+      return oneDayChart;
+    }
 
-  return Array.isArray(spark7d)
-    ? spark7d.map(price => ({ price }))
-    : [];
-}, [activeRange, oneDayChart, spark7d]);
+    return Array.isArray(spark7d) ? spark7d.map((price) => ({ price })) : [];
+  }, [activeRange, oneDayChart, spark7d]);
 
   const price = coin?.market_data?.current_price?.usd;
   const marketCap = coin?.market_data?.market_cap?.usd;
@@ -354,7 +384,7 @@ const activeChartData = useMemo(() => {
 
   return (
     <div className='rounded-div my-12 border-none py-8'>
-      <div className='grid grid-cols-12 gap-8 items-stretch'>
+      <div className='grid grid-cols-12 items-stretch gap-8'>
         <div className='col-span-12 rounded-3xl border border-[#f2e2c7] bg-[#fff9f2] px-6 py-6 shadow-sm md:px-8 md:py-7 lg:col-span-4'>
           <div className='flex items-center gap-5'>
             <img
