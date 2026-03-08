@@ -100,15 +100,15 @@ const formatTime = (timestamp) => {
   return (
     <div className='relative h-full min-h-[160px] w-full sm:min-h-[180px] md:min-h-[200px]'>
       
-      {hoveredPoint && (
+     {hoveredPoint && (
   <div
-    className="absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none"
+    className="absolute -top-9 left-0 bg-black/90 text-white text-xs px-2 py-1 rounded-md shadow pointer-events-none"
     style={{
-  transform: `translateX(${points[hoverIndex][0]}px) translateX(-50%)`
-}}
+      transform: `translateX(${tooltipX}px) translateX(-50%)`
+    }}
   >
     {money(hoveredPoint.price)}
-{hoveredPoint.timestamp && ` • ${formatTime(hoveredPoint.timestamp)}`}
+    {hoveredPoint.timestamp && ` • ${formatTime(hoveredPoint.timestamp)}`}
   </div>
 )}
       <svg
