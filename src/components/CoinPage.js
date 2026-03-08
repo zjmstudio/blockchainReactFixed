@@ -54,19 +54,6 @@ const pctClass = (v) => {
 const rangeConfig = {
   '1D': { label: '1 Day Performance' },
   '7D': { label: '7 Day Performance' },
-  '30D': { label: '30 Day Performance' },
-  '1Y': { label: '1 Year Performance' },
-};
-
-const smoothSeries = (data, windowSize = 3) => {
-  if (!Array.isArray(data) || data.length < 3) return data;
-
-  return data.map((_, index) => {
-    const start = Math.max(0, index - windowSize + 1);
-    const slice = data.slice(start, index + 1);
-    const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
-    return avg;
-  });
 };
 
 const AreaSparkline = ({ data }) => {
@@ -85,24 +72,44 @@ const AreaSparkline = ({ data }) => {
   const padTop = 10;
   const bottomY = height;
 
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
+const min = Math.min(...data.map(pricePoint => pricePoint.price));
+const max = Math.max(...data.map(pricePoint => pricePoint.price));
+const range = max - min || 1;
 
-  const points = data.map((value, index) => {
-    const x = (index / (data.length - 1)) * width;
-    const y = height - ((value - min) / range) * (height - padTop);
-    return [x, y];
-  });
+const points = data.map((pricePoint, index) => {
+  const x = (index / (data.length - 1)) * width;
+  const y = height - ((pricePoint.price - min) / range) * (height - padTop);
+  return [x, y];
+});
 
   const linePath = points
     .map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`)
     .join(' ');
-
+const hoveredPoint = hoverIndex !== null ? data[hoverIndex] : null;
+const formatTime = (timestamp) => {
+  if (!timestamp) return '';
+  return new Date(timestamp).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
   const areaPath = `${linePath} L ${points[points.length - 1][0]} ${bottomY} L ${points[0][0]} ${bottomY} Z`;
 
   return (
-    <div className='h-full min-h-[160px] w-full sm:min-h-[180px] md:min-h-[200px]'>
+    <div className='relative h-full min-h-[160px] w-full sm:min-h-[180px] md:min-h-[200px]'>
+      
+      {hoveredPoint && (
+  <div
+    className="absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none"
+    style={{
+      transform: `translateX(${points[hoverIndex][0]}px)`
+    }}
+  >
+    {money(hoveredPoint.price)} • {formatTime(hoveredPoint.timestamp)}
+  </div>
+)}
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className='block h-full w-full'
@@ -135,7 +142,11 @@ const AreaSparkline = ({ data }) => {
           </filter>
         </defs>
 
-        <path d={areaPath} fill='url(#coinAreaFill)' style={{ transition: 'all 0.35s ease' }} />
+        <path
+          d={areaPath}
+          fill='url(#coinAreaFill)'
+          style={{ transition: 'all 0.35s ease' }}
+        />
 
         <path
           d={linePath}
@@ -187,6 +198,8 @@ const CoinPage = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
   const [activeRange, setActiveRange] = useState('7D');
+  const [oneDayChart, setOneDayChart] = useState([]);
+  const [oneDayLoading, setOneDayLoading] = useState(false);
 
   const { coinId } = useParams();
   const coinUrl = API.coin(coinId ?? '');
@@ -197,6 +210,7 @@ const CoinPage = () => {
     setLoading(true);
     setErrMsg('');
     setCoin(null);
+    setOneDayChart([]);
 
     axios
       .get(coinUrl)
@@ -221,39 +235,75 @@ const CoinPage = () => {
     };
   }, [coinUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
 
+    const loadOneDayChart = async () => {
+      if (!coinId) return;
+      if (activeRange !== '1D') return;
+      if (oneDayChart.length > 1) return;
 
- const spark7d = coin?.market_data?.sparkline_7d?.price ?? [];
+      setOneDayLoading(true);
 
-const activeChartData = useMemo(() => {
-  if (!Array.isArray(spark7d) || spark7d.length < 2) return [];
+      try {
+        const response = await axios.get(
+          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
+          {
+            params: {
+              vs_currency: 'usd',
+              days: 1,
+            },
+          }
+        );
 
-  if (activeRange === '1D') {
-    return spark7d.slice(-24);
-  }
+        if (cancelled) return;
 
-  return spark7d;
-}, [spark7d, activeRange]);
+        const prices = Array.isArray(response.data?.prices)
+          ? response.data.prices.map(([timestamp, price]) => ({   price,   timestamp }))
+          : [];
 
+        setOneDayChart(prices);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('1D chart fetch failed:', err);
+        setOneDayChart([]);
+      } finally {
+        if (cancelled) return;
+        setOneDayLoading(false);
+      }
+    };
 
+    loadOneDayChart();
 
+    return () => {
+      cancelled = true;
+    };
+  }, [coinId, activeRange, oneDayChart.length]);
 
-  const rangePct = useMemo(() => {
-    if (!coin?.market_data) return NaN;
+  const spark7d = coin?.market_data?.sparkline_7d?.price ?? [];
 
-    switch (activeRange) {
-      case '1D':
-        return coin.market_data?.price_change_percentage_24h;
-      case '7D':
-        return coin.market_data?.price_change_percentage_7d;
-      case '30D':
-        return coin.market_data?.price_change_percentage_30d;
-      case '1Y':
-        return coin.market_data?.price_change_percentage_1y;
-      default:
-        return NaN;
+  const activeChartData = useMemo(() => {
+    if (activeRange === '1D') {
+      return oneDayChart;
     }
-  }, [coin, activeRange]);
+
+    return Array.isArray(spark7d) ? spark7d : [];
+  }, [activeRange, oneDayChart, spark7d]);
+
+  const price = coin?.market_data?.current_price?.usd;
+  const marketCap = coin?.market_data?.market_cap?.usd;
+  const volume24h = coin?.market_data?.total_volume?.usd;
+  const high24h = coin?.market_data?.high_24h?.usd;
+  const low24h = coin?.market_data?.low_24h?.usd;
+
+  const pct24h = coin?.market_data?.price_change_percentage_24h;
+  const pct7d = coin?.market_data?.price_change_percentage_7d;
+  const pct14d = coin?.market_data?.price_change_percentage_14d;
+  const pct30d = coin?.market_data?.price_change_percentage_30d;
+  const pct60d = coin?.market_data?.price_change_percentage_60d;
+  const pct1y = coin?.market_data?.price_change_percentage_1y;
+
+  const rangePct = activeRange === '1D' ? pct24h : pct7d;
 
   if (loading) {
     return (
@@ -278,19 +328,6 @@ const activeChartData = useMemo(() => {
       </div>
     );
   }
-
-  const price = coin.market_data?.current_price?.usd;
-  const marketCap = coin.market_data?.market_cap?.usd;
-  const volume24h = coin.market_data?.total_volume?.usd;
-  const high24h = coin.market_data?.high_24h?.usd;
-  const low24h = coin.market_data?.low_24h?.usd;
-
-  const pct24h = coin.market_data?.price_change_percentage_24h;
-  const pct7d = coin.market_data?.price_change_percentage_7d;
-  const pct14d = coin.market_data?.price_change_percentage_14d;
-  const pct30d = coin.market_data?.price_change_percentage_30d;
-  const pct60d = coin.market_data?.price_change_percentage_60d;
-  const pct1y = coin.market_data?.price_change_percentage_1y;
 
   const statCards = [
     { label: 'Market Cap', value: money(marketCap) },
@@ -393,14 +430,16 @@ const activeChartData = useMemo(() => {
           </div>
 
           <div className='flex-1'>
-            {activeChartData ? (
+            {activeRange === '1D' && oneDayLoading ? (
+              <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
+                Loading chart…
+              </p>
+            ) : activeChartData.length > 1 ? (
               <AreaSparkline key={activeRange} data={activeChartData} />
             ) : (
-              <div className='px-5 pb-5 md:px-6 md:pb-6'>
-                <p className='text-sm text-gray-500'>
-                  Chart unavailable in browser mode for this range due to API rate limits.
-                </p>
-              </div>
+              <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
+                Market data is temporarily unavailable.
+              </p>
             )}
           </div>
         </div>
