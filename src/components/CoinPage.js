@@ -113,6 +113,7 @@ const AreaSparkline = ({ data }) => {
     const rect = element.getBoundingClientRect();
     const x = clientX - rect.left;
     const percent = rect.width ? x / rect.width : 0;
+
     const index = Math.max(
       0,
       Math.min(data.length - 1, Math.round(percent * (data.length - 1)))
@@ -134,6 +135,7 @@ const AreaSparkline = ({ data }) => {
           <div className='whitespace-nowrap font-semibold'>
             {money(hoveredPoint.price)}
           </div>
+
           {hoveredPoint.timestamp && (
             <div className='mt-0.5 whitespace-nowrap text-white/80'>
               {formatTime(hoveredPoint.timestamp)}
@@ -159,8 +161,8 @@ const AreaSparkline = ({ data }) => {
       >
         <defs>
           <linearGradient id='coinAreaFill' x1='0' y1='0' x2='0' y2='1'>
-            <stop offset='0%' stopColor='#f97316' stopOpacity='0.32' />
-            <stop offset='100%' stopColor='#f97316' stopOpacity='0.05' />
+            <stop offset='0%' stopColor='#14b8a6' stopOpacity='0.35' />
+            <stop offset='100%' stopColor='#14b8a6' stopOpacity='0.04' />
           </linearGradient>
 
           <filter id='glow'>
@@ -181,9 +183,9 @@ const AreaSparkline = ({ data }) => {
         <path
           d={linePath}
           fill='none'
-          stroke='#f97316'
+          stroke='#14b8a6'
           strokeWidth='6'
-          opacity='0.22'
+          opacity='0.25'
           filter='url(#glow)'
           style={{ transition: 'all 0.25s ease' }}
         />
@@ -191,7 +193,7 @@ const AreaSparkline = ({ data }) => {
         <path
           d={linePath}
           fill='none'
-          stroke='#f97316'
+          stroke='#14b8a6'
           strokeWidth='3'
           strokeLinecap='round'
           strokeLinejoin='round'
@@ -212,7 +214,7 @@ const AreaSparkline = ({ data }) => {
               cx={hoveredCoords[0]}
               cy={hoveredCoords[1]}
               r='5'
-              fill='#f97316'
+              fill='#14b8a6'
               stroke='white'
               strokeWidth='2'
             />
@@ -320,7 +322,9 @@ const CoinPage = () => {
       return oneDayChart;
     }
 
-    return Array.isArray(spark7d) ? spark7d.map((price) => ({ price })) : [];
+    return Array.isArray(spark7d)
+      ? spark7d.map((price) => ({ price }))
+      : [];
   }, [activeRange, oneDayChart, spark7d]);
 
   const price = coin?.market_data?.current_price?.usd;
