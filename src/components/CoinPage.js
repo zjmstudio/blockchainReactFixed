@@ -104,8 +104,8 @@ const formatTime = (timestamp) => {
   <div
     className="absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none"
     style={{
-      transform: `translateX(${points[hoverIndex][0]}px)`
-    }}
+  transform: `translateX(${points[hoverIndex][0]}px) translateX(-50%)`
+}}
   >
     {money(hoveredPoint.price)}
 {hoveredPoint.timestamp && ` • ${formatTime(hoveredPoint.timestamp)}`}
