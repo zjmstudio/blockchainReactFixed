@@ -1,20 +1,30 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DOMPurify from 'dompurify';
 import { useParams } from 'react-router-dom';
 import { API } from '../api';
 
+const currencyOptions = [
+  { code: 'usd', label: 'USD' },
+  { code: 'eur', label: 'EUR' },
+  { code: 'gbp', label: 'GBP' },
+  { code: 'jpy', label: 'JPY' },
+  { code: 'cad', label: 'CAD' },
+  { code: 'aud', label: 'AUD' },
+];
+
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : 'N/A');
 
-const money = (v) => {
+const money = (v, currency = 'usd') => {
   if (!Number.isFinite(v)) return 'N/A';
 
+  const upperCurrency = currency.toUpperCase();
   const abs = Math.abs(v);
 
   if (abs >= 1) {
     return v.toLocaleString('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: upperCurrency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
@@ -23,7 +33,7 @@ const money = (v) => {
   if (abs >= 0.01) {
     return v.toLocaleString('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: upperCurrency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     });
@@ -32,7 +42,7 @@ const money = (v) => {
   if (abs >= 0.0001) {
     return v.toLocaleString('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: upperCurrency,
       minimumFractionDigits: 4,
       maximumFractionDigits: 6,
     });
@@ -40,7 +50,7 @@ const money = (v) => {
 
   return v.toLocaleString('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: upperCurrency,
     minimumFractionDigits: 8,
     maximumFractionDigits: 8,
   });
@@ -56,21 +66,10 @@ const rangeConfig = {
   '7D': { label: '7 Day Performance', days: 7 },
 };
 
-const formatTime = (timestamp, range) => {
+const formatTime = (timestamp) => {
   if (!timestamp) return '';
 
-  const date = new Date(timestamp);
-
-  if (range === '1D') {
-    return date.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }
-
-  return date.toLocaleString(undefined, {
+  return new Date(timestamp).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -78,7 +77,7 @@ const formatTime = (timestamp, range) => {
   });
 };
 
-const AreaSparkline = ({ data, activeRange }) => {
+const AreaSparkline = ({ data, activeRange, currency }) => {
   const [hoverIndex, setHoverIndex] = useState(null);
 
   if (!Array.isArray(data) || data.length < 2) {
@@ -131,17 +130,18 @@ const AreaSparkline = ({ data, activeRange }) => {
 
   return (
     <div className='relative h-full min-h-[160px] w-full overflow-hidden sm:min-h-[180px] md:min-h-[200px]'>
-      {hoveredPoint && (
+      {hoveredPoint && hoveredCoords && (
         <div
-          className='pointer-events-none absolute top-2 z-10 rounded-md bg-black/90 px-2 py-1 text-[11px] text-white shadow sm:text-xs'
+          className='pointer-events-none absolute z-10 rounded-md bg-black/90 px-2 py-1 text-[11px] text-white shadow sm:text-xs'
           style={{
             left: `clamp(76px, ${tooltipPercent}, calc(100% - 76px))`,
+            top: hoveredCoords[1] < 40 ? '42px' : '8px',
             transform: 'translateX(-50%)',
             maxWidth: 'calc(100% - 8px)',
           }}
         >
           <div className='whitespace-nowrap font-semibold'>
-            {money(hoveredPoint.price)}
+            {money(hoveredPoint.price, currency)}
           </div>
           <div className='whitespace-nowrap text-white/80'>
             {formatTime(hoveredPoint.timestamp, activeRange)}
@@ -235,6 +235,7 @@ const CoinPage = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
   const [activeRange, setActiveRange] = useState('7D');
+  const [selectedCurrency, setSelectedCurrency] = useState('usd');
   const [chartData, setChartData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
 
@@ -286,7 +287,7 @@ const CoinPage = () => {
           `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
           {
             params: {
-              vs_currency: 'usd',
+              vs_currency: selectedCurrency,
               days,
             },
           }
@@ -317,13 +318,13 @@ const CoinPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [coinId, activeRange]);
+  }, [coinId, activeRange, selectedCurrency]);
 
-  const price = coin?.market_data?.current_price?.usd;
-  const marketCap = coin?.market_data?.market_cap?.usd;
-  const volume24h = coin?.market_data?.total_volume?.usd;
-  const high24h = coin?.market_data?.high_24h?.usd;
-  const low24h = coin?.market_data?.low_24h?.usd;
+  const price = coin?.market_data?.current_price?.[selectedCurrency];
+  const marketCap = coin?.market_data?.market_cap?.[selectedCurrency];
+  const volume24h = coin?.market_data?.total_volume?.[selectedCurrency];
+  const high24h = coin?.market_data?.high_24h?.[selectedCurrency];
+  const low24h = coin?.market_data?.low_24h?.[selectedCurrency];
 
   const pct24h = coin?.market_data?.price_change_percentage_24h;
   const pct7d = coin?.market_data?.price_change_percentage_7d;
@@ -359,10 +360,10 @@ const CoinPage = () => {
   }
 
   const statCards = [
-    { label: 'Market Cap', value: money(marketCap) },
-    { label: 'Volume (24h)', value: money(volume24h) },
-    { label: '24h High', value: money(high24h) },
-    { label: '24h Low', value: money(low24h) },
+    { label: 'Market Cap', value: money(marketCap, selectedCurrency) },
+    { label: 'Volume (24h)', value: money(volume24h, selectedCurrency) },
+    { label: '24h High', value: money(high24h, selectedCurrency) },
+    { label: '24h Low', value: money(low24h, selectedCurrency) },
     { label: 'Market Rank', value: coin.market_cap_rank ?? 'N/A' },
     { label: 'Hashing Algorithm', value: coin.hashing_algorithm ?? 'N/A' },
     { label: 'Trust Score', value: fmt(coin?.liquidity_score, 2) },
@@ -396,7 +397,7 @@ const CoinPage = () => {
 
               <div className='mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600 md:text-base'>
                 <span className='font-medium'>
-                  {coin.symbol?.toUpperCase()} / USD
+                  {coin.symbol?.toUpperCase()} / {selectedCurrency.toUpperCase()}
                 </span>
                 <span className='inline-block h-1 w-1 rounded-full bg-gray-400'></span>
                 <span>Rank #{coin.market_cap_rank ?? 'N/A'}</span>
@@ -410,7 +411,7 @@ const CoinPage = () => {
             </p>
 
             <p className='mt-1 max-w-full break-all text-[clamp(1.6rem,4.2vw,2.6rem)] font-bold leading-none'>
-              {money(price)}
+              {money(price, selectedCurrency)}
             </p>
 
             <div className='mt-2'>
@@ -430,8 +431,8 @@ const CoinPage = () => {
         </div>
 
         <div className='col-span-12 flex flex-col overflow-hidden rounded-3xl border border-[#ececec] bg-white pt-5 shadow-sm md:pt-6 lg:col-span-8'>
-          <div className='mb-4 flex items-start justify-between gap-4 px-5 md:px-6'>
-            <div className='flex flex-wrap gap-2'>
+          <div className='mb-4 flex flex-col gap-4 px-5 md:px-6 lg:flex-row lg:items-start lg:justify-between'>
+            <div className='flex flex-wrap items-center gap-2'>
               {Object.keys(rangeConfig).map((range) => (
                 <button
                   key={range}
@@ -446,9 +447,24 @@ const CoinPage = () => {
                   {range}
                 </button>
               ))}
+
+              <div className='relative'>
+                <select
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                  className='rounded-full border border-[#e5e7eb] bg-white px-3 py-1 pr-8 text-xs font-semibold uppercase text-gray-700 outline-none transition hover:border-[#d1d5db] md:text-sm'
+                  aria-label='Select currency'
+                >
+                  {currencyOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className='text-right'>
+            <div className='text-left lg:text-right'>
               <p className='text-sm uppercase tracking-wide text-gray-500'>
                 {rangeConfig[activeRange].label}
               </p>
@@ -464,7 +480,11 @@ const CoinPage = () => {
                 Loading chart…
               </p>
             ) : chartData.length > 1 ? (
-              <AreaSparkline data={chartData} activeRange={activeRange} />
+              <AreaSparkline
+                data={chartData}
+                activeRange={activeRange}
+                currency={selectedCurrency}
+              />
             ) : (
               <p className='px-5 pb-5 text-sm text-gray-500 md:px-6 md:pb-6'>
                 Market data is temporarily unavailable.
