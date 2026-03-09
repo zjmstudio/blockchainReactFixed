@@ -393,9 +393,9 @@ const CoinPage = () => {
             />
 
             <div className='min-w-0'>
-              <p className='text-3xl font-bold leading-tight md:text-4xl'>
-                {coin?.name}
-              </p>
+             <p className='text-3xl font-bold leading-tight md:text-4xl break-words'>
+  {coin?.name}
+</p>
 
               <div className='mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600 md:text-base'>
                 <span className='font-medium'>
