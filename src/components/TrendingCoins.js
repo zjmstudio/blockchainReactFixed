@@ -18,7 +18,11 @@ const TrendingCoins = () => {
     setErrMsg('');
 
     axios
-      .get(url)
+  .get(url, {
+    headers: {
+      'x-cg-demo-api-key': process.env.REACT_APP_COINGECKO_KEY
+    }
+  })
       .then((response) => {
         if (cancelled) return;
         const coins = response.data?.coins ?? [];

@@ -284,15 +284,17 @@ const CoinPage = () => {
         const days = rangeConfig[activeRange].days;
 
         const response = await axios.get(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
-          {
-            params: {
-              vs_currency: selectedCurrency,
-              days,
-            },
-          }
-        );
-
+  `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
+  {
+    params: {
+      vs_currency: selectedCurrency,
+      days,
+    },
+    headers: {
+      'x-cg-demo-api-key': process.env.REACT_APP_COINGECKO_KEY
+    }
+  }
+);
         if (cancelled) return;
 
         const prices = Array.isArray(response.data?.prices)

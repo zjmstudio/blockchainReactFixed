@@ -17,8 +17,12 @@ function Featured() {
     let cancelled = false;
 
     setErrMsg('');
-    axios
-      .get(url)
+   axios
+  .get(url, {
+    headers: {
+      'x-cg-demo-api-key': process.env.REACT_APP_COINGECKO_KEY
+    }
+  })
       .then((response) => {
         if (cancelled) return;
         setData(Array.isArray(response.data) ? response.data : []);

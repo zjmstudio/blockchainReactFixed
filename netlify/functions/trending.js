@@ -1,4 +1,4 @@
-// netlify/functions/trending.js
+
 
 const COINGECKO_URL = 'https://api.coingecko.com/api/v3/search/trending';
 
@@ -8,6 +8,7 @@ export default async () => {
       headers: {
         'User-Agent': 'netlify-function',
         Accept: 'application/json',
+        'x-cg-demo-api-key': process.env.COINGECKO_KEY,
       },
     });
 

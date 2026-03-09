@@ -30,7 +30,11 @@ function App() {
 
   useEffect(() => {
     axios
-      .get(url)
+  .get(url, {
+    headers: {
+      'x-cg-demo-api-key': process.env.REACT_APP_COINGECKO_KEY
+    }
+  })
       .then((response) => {
         setCoins(Array.isArray(response.data) ? response.data : []);
       })
