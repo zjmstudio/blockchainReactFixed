@@ -91,7 +91,7 @@ const AreaSparkline = ({ data, activeRange }) => {
 
   const width = 900;
   const height = 260;
-  const padTop = 2;
+  const padTop = 50;
   const bottomY = height;
 
   const min = Math.min(...data.map((pricePoint) => pricePoint.price));
