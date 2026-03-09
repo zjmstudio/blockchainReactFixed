@@ -250,7 +250,11 @@ const CoinPage = () => {
     setCoin(null);
 
     axios
-      .get(coinUrl)
+  .get(coinUrl, {
+    headers: {
+      'x-cg-demo-api-key': process.env.REACT_APP_COINGECKO_KEY,
+    },
+  })
       .then((response) => {
         if (cancelled) return;
         setCoin(response.data);
